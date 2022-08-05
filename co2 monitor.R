@@ -20,8 +20,8 @@ room <- readline("Enter room number: ")
 open(con)
 
 while(isOpen(con) & co2_port %in% suppressMessages(listPorts())) {
-# Try reading from the USB every 0.2 sec
-  Sys.sleep(0.2)
+# Try reading from the USB every 5 sec (same as DATA_RATE defined in adafruit code)
+  Sys.sleep(5)
   co2_json <-
     try(read.serialConnection(con) %>% 
           jsonlite::parse_json(), silent = TRUE)
