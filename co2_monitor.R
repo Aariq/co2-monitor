@@ -4,12 +4,17 @@ library(tidyverse)
 library(hms)
 library(rtweet)
 library(usethis)
+library(ragg)
+library(magick)
 
 #figure out which port it's plugged into
 ports <- listPorts()
 co2_port <- ports[str_detect(ports, "^cu\\.usbmodem\\d+")]
-if(!length(co2_port)==1) {
-  stop("more than one thing is plugged in")
+if(length(co2_port) == 0) {
+  stop("Nothing is plugged in")
+}
+if(!length(co2_port) > 1) {
+  stop("More than one thing is plugged in")
 }
 
 con <- serialConnection(
@@ -58,12 +63,13 @@ while(isOpen(con) & co2_port %in% suppressMessages(listPorts())) {
 
 close(con)
 
-#save example for plot development
-# write_csv(co2_df, "example_data.csv")
-# co2_df <- read_csv("example_data.csv")
+#save "raw" data
+write_csv(co2_df, paste0("data/", Sys.time(), "-rm", room,  "-data.csv"))
 
 co2_df <-
   co2_df %>%
+  #remove abberantly low values
+  filter(CO2 > 300) %>% 
   mutate(time = hms::as_hms(date_time),
          cat = case_when(
            CO2 <= 1000 ~ "acceptable",
@@ -92,9 +98,12 @@ summary <-
 
 # Make the plot
 #TODO: make a prettier plot, readable in a tweet
+#' - wider margin so numbers don't get cut off
+#' - Big colored number somewhere
+#' - emoji?
 p <-
   co2_df %>%
-  ggplot(aes(x = time, y = CO2, color = cat)) +
+  ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
   geom_line(alpha = 0.6) +
   geom_point() +
   scale_x_time(labels = scales::label_time(format = "%H:%M")) +
@@ -111,8 +120,7 @@ p <-
   ) +
   theme(text = element_text(size = 12))
 
-plot_file <- paste0("co2-", summary$end_time, ".png")
-ggsave(plot_file, path = "img", plot = p, width = 1200, height = 675, units = "px")
+
 
 #Construct the tweet:
 #TODO add emoji!
@@ -124,7 +132,7 @@ alt <-
 )
 
 #Preview tweet and prompt to send or not
-p
+magick::image_read(file.path("img", plot_file))
 go <- ui_yeah(c("Ready to tweet?", ui_value(tweet)))
 
 if(go){
