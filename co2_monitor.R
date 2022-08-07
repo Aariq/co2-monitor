@@ -132,7 +132,7 @@ number <-
   ) +
   theme_void()
 
-p + number
+number/p
 
 
 #Construct the tweet:
