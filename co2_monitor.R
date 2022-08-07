@@ -107,10 +107,10 @@ p <-
   geom_line(alpha = 0.6) +
   geom_point() +
   scale_x_time(labels = scales::label_time(format = "%H:%M")) +
-    scale_color_manual(
-      guide = "none",
-      values = c(acceptable = "green", moderate = "orange", high = "red")
-    ) +
+  scale_color_manual(
+    guide = "none",
+    values = c(acceptable = "green", moderate = "orange", high = "red")
+  ) +
   theme_bw() +
   labs(
     x = "Time",
@@ -120,6 +120,18 @@ p <-
   ) +
   theme(text = element_text(size = 12))
 
+library(patchwork)
+
+number <-
+  ggplot(summary) +
+  geom_text(aes(x = 0, y = 0, label = co2_mean, color = cat), size = 20) +
+  scale_color_manual(
+    guide = "none",
+    values = c(acceptable = "green", moderate = "orange", high = "red")
+  ) +
+  theme_void()
+
+p + number
 
 
 #Construct the tweet:
