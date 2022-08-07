@@ -121,6 +121,8 @@ p <-
   theme(text = element_text(size = 12))
 
 
+plot_file <- paste0("co2-", summary$end_time, ".png")
+ggsave(plot_file, path = "img", plot = p, width = 1200, height = 675, units = "px")
 
 #Construct the tweet:
 #TODO add emoji!
