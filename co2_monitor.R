@@ -13,7 +13,7 @@ co2_port <- ports[str_detect(ports, "^cu\\.usbmodem\\d+")]
 if(length(co2_port) == 0) {
   stop("Nothing is plugged in")
 }
-if(!length(co2_port) > 1) {
+if(length(co2_port) > 1) {
   stop("More than one thing is plugged in")
 }
 
@@ -135,6 +135,7 @@ alt <-
 
 #Preview tweet and prompt to send or not
 magick::image_read(file.path("img", plot_file))
+
 go <- ui_yeah(c("Ready to tweet?", ui_value(tweet)))
 
 if(go){
