@@ -8,6 +8,7 @@ I'll be attending the 2022 Ecological Society of America meeting and I'm concern
 
 This repository holds code to pull data from the Arduino trinkey kit and send a tweet with `rtweet`.  When the Arduino trinkey is plugged into a USB port, running the code in `co2_monitor.R` will prompt the user for a room number and start collecting data.  When the trinkey is unplugged from the port, it will create a plot and some text and prompt the user if they'd like to post a tweet with the plot and some info about the CO2 levels and the room number.
 
+In `arduino/` there is the very slightly modified arduino code I'm using to send the data over serial (`co2_sender.ino`) as well as a forced re-calibration script I cobbled together **but did not test**.  Originally I thought the sensor needed re-calibration as it was reading ~500ppm outdoors, but then I just moved the sensor further away from my face and it reads ~420ppm.  So please use `forced_calibration.ino` at your own risk!
 
 # References
 
