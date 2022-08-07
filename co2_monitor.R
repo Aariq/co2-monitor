@@ -105,7 +105,7 @@ p <-
   co2_df %>%
   ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
   geom_line(alpha = 0.6) +
-  geom_point() +
+  geom_point(size = 0.75) +
   scale_x_time(labels = scales::label_time(format = "%H:%M")) +
   scale_color_manual(
     guide = "none",
@@ -118,7 +118,8 @@ p <-
     title = "#ESACO2",
     subtitle = glue::glue("room: {room}")
   ) +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 12),
+        plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
 
 library(patchwork)
 
