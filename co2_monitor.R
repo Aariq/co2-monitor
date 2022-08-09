@@ -1,3 +1,6 @@
+
+# Load packages -----------------------------------------------------------
+
 library(serial)
 library(jsonlite)
 library(tidyverse)
@@ -8,13 +11,16 @@ library(ragg)
 library(magick)
 source("R/make_co2_plot.R")
 
+
+# Set up serial port reading --------------------------------------------------
+
 #figure out which port it's plugged into
 ports <- listPorts()
 co2_port <- ports[str_detect(ports, "^cu\\.usbmodem\\d+")]
 if(length(co2_port) == 0) {
   stop("Nothing is plugged in")
 }
-if(!length(co2_port) > 1) {
+if(length(co2_port) > 1) {
   stop("More than one thing is plugged in")
 }
 
@@ -26,6 +32,9 @@ con <- serialConnection(
 room <- readline(ui_line("Enter room number: "))
 
 open(con)
+
+
+# Start reading from sensor -----------------------------------------------
 
 #clear environment of previous results
 rm(co2_df)
@@ -64,6 +73,9 @@ while(isOpen(con) & co2_port %in% suppressMessages(listPorts())) {
 
 close(con)
 
+
+# Data wrangling ----------------------------------------------------------
+
 #save "raw" data
 write_csv(co2_df, paste0("data/", Sys.time(), "-rm", room,  "-data.csv"))
 
@@ -97,15 +109,59 @@ summary <-
             ))
 
 
-# Make the plot
-#TODO: make a prettier plot, readable in a tweet
-#' - wider margin so numbers don't get cut off
-#' - Big colored number somewhere
-#' - emoji?
-p <- make_co2_plot(co2_df)
+# Generate plot -----------------------------------------------------------
 
-#Construct the tweet:
-#TODO add emoji!
+# p <-
+  co2_df %>%
+  ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 0.75) +
+  scale_x_time(labels = scales::label_time(format = "%H:%M")) +
+  scale_color_manual(
+    guide = "none",
+    values = c(acceptable = "green", moderate = "orange", high = "red")
+  ) +
+  theme_bw() +
+  labs(
+    x = "Time",
+    y = expression(CO[2]~(ppm)),
+    # title = "#ESACO2",
+    # subtitle = glue::glue("room: {room}")
+  ) +
+  theme(text = element_text(size = 12),
+        plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
+
+label <- glue::glue("<span style='font-size:100pt'>{summary$co2_mean}</span><span style='color:black'>ppm</span>")
+
+ggplot(summary) +
+  geom_richtext(aes(
+    x = 0,
+    y = 0,
+    label = label,
+    color = cat
+  ),
+  fill = NA,
+  label.color = NA) +
+  scale_color_manual(
+    guide = "none",
+    values = c(acceptable = "green", moderate = "orange", high = "red")
+  ) +
+  theme_void()
+  
+  
+plot_file <- paste0("co2-", summary$end_time, ".png")
+ggsave(
+  plot_file,
+  path = "img",
+  plot = p,
+  width = 1200,
+  height = 675,
+  units = "px"
+)
+
+
+# Construct the tweet -----------------------------------------------------
+#TODO: simplify tweet text
 tweet <- glue::glue("CO2 is currently at {summary$cat} levels in room {room} (mean = {summary$co2_mean}ppm, max = {summary$co2_max}ppm over the past {summary$durr} minutes)\n#ESACO2")
 alt <-
   glue::glue(
