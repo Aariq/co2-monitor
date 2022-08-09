@@ -1,3 +1,6 @@
+
+# Load packages -----------------------------------------------------------
+
 library(serial)
 library(jsonlite)
 library(tidyverse)
@@ -6,6 +9,10 @@ library(rtweet)
 library(usethis)
 library(ragg)
 library(magick)
+library(ggtext)
+library(patchwork)
+
+# Set up serial port reading --------------------------------------------------
 
 #figure out which port it's plugged into
 ports <- listPorts()
@@ -22,9 +29,13 @@ con <- serialConnection(
   port = co2_port
 )
 
+#prompt for room number
 room <- readline(ui_line("Enter room number: "))
 
 open(con)
+
+
+# Start reading from sensor -----------------------------------------------
 
 #clear environment of previous results
 rm(co2_df)
@@ -63,74 +74,122 @@ while(isOpen(con) & co2_port %in% suppressMessages(listPorts())) {
 
 close(con)
 
+
+# Data wrangling ----------------------------------------------------------
+
 #save "raw" data
-write_csv(co2_df, paste0("data/", Sys.time(), "-rm", room,  "-data.csv"))
+write_csv(co2_df, paste0("data/", Sys.time(), "-", room,  "-data.csv"))
 
 co2_df <-
   co2_df %>%
+  mutate(date_time = lubridate::with_tz(date_time, tzone = "Canada/Eastern")) %>% 
   #remove abberantly low values
   filter(CO2 > 300) %>% 
   mutate(time = hms::as_hms(date_time),
          cat = case_when(
-           CO2 <= 1000 ~ "acceptable",
-           CO2 > 1000 & CO2 <= 2000 ~ "moderate",
-           CO2 > 2000 ~ "high"
+           CO2 <= 1000 ~ "1",
+           CO2 > 1000 & CO2 <= 2000 ~ "2",
+           CO2 > 2000 & CO2 <= 5000 ~ "3",
+           CO2 > 5000 ~ "4"
          ))
 
 # Summarize
 summary <-
   co2_df %>%
-  summarize(co2_mean = round(mean(CO2)),
+  dplyr::summarize(co2_mean = round(mean(CO2)),
             co2_max = max(CO2),
             co2_min = min(CO2),
             co2_min_time = .$date_time[which.min(.$CO2)],
             co2_max_time = .$date_time[which.max(.$CO2)],
             start_time = min(date_time),
             end_time = max(date_time),
-            durr = round(end_time - start_time),
-            #TODO: better cutoffs??
+            durr = round(end_time - start_time)) %>% 
+    mutate(
             cat = case_when(
-              co2_mean <= 1000 ~ "acceptable",
-              co2_mean > 1000 & co2_mean <= 2000 ~ "moderate",
-              co2_mean > 2000 ~ "high"
-            ))
+              co2_mean <= 1000 ~ "1",
+              co2_mean > 1000 & co2_mean <= 2000 ~ "2",
+              co2_mean > 2000 & co2_mean <= 5000 ~ "3",
+              co2_mean > 5000 ~ "4"
+            ),
+            emoji = case_when(
+              co2_mean <= 1000 ~ "😀",
+              co2_mean > 1000 & co2_mean <= 2000 ~ "🥱",
+              co2_mean > 2000 & co2_mean <= 5000 ~ "😦",
+              co2_mean > 5000 ~ "😵"
+            )
+  )
 
 
-# Make the plot
-#TODO: make a prettier plot, readable in a tweet
-#' - wider margin so numbers don't get cut off
-#' - Big colored number somewhere
-#' - emoji?
-p <-
+# Generate plot -----------------------------------------------------------
+co2_colors = c(
+  "1" = "#008037",
+  "2" = "#FFBD59",
+  "3" = "#FF914D",
+  "4" = "#FF1616"
+    )
+bottom <-
   co2_df %>%
   ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
   geom_line(alpha = 0.6) +
-  geom_point() +
-  scale_x_time(labels = scales::label_time(format = "%H:%M")) +
-    scale_color_manual(
-      guide = "none",
-      values = c(acceptable = "green", moderate = "orange", high = "red")
-    ) +
+  geom_point(size = 0.75) +
+  scale_x_time(labels = scales::label_time(format = "%I:%M %p")) +
+  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
+  scale_color_manual(
+    guide = "none",
+    values = co2_colors
+  ) +
   theme_bw() +
   labs(
     x = "Time",
-    y = expression(CO[2]~(ppm)),
-    title = "#ESACO2",
-    subtitle = glue::glue("room: {room}")
+    y = expression(CO[2]~(ppm))
   ) +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 12),
+        axis.title.x = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
 
+
+label <- glue::glue("
+                    <span style='font-size:35pt; color:{co2_colors[summary$cat]}'>{summary$co2_mean}</span>ppm <span style='font-size:35pt;'>{summary$emoji}</span>
+                    <br>room: {room}     #esaCO2 
+                    ")
+
+top <- ggplot(summary) +
+  geom_richtext(aes(
+    x = 0,
+    y = 0,
+    label = label
+  ),
+  fill = NA,
+  label.color = NA,
+  size = 5) +
+  scale_color_manual(
+    guide = "none",
+    values = co2_colors
+  ) +
+  theme_void()
+
+p <- top/bottom
+p  
+plot_file <- paste0("co2-", summary$end_time, ".png")
+ggsave(
+  plot_file,
+  path = "img",
+  plot = p,
+  width = 1200,
+  height = 675,
+  units = "px"
+)
 
 plot_file <- paste0("co2-", summary$end_time, ".png")
 ggsave(plot_file, path = "img", plot = p, width = 1200, height = 675, units = "px")
 
-#Construct the tweet:
-#TODO add emoji!
-tweet <- glue::glue("CO2 is currently at {summary$cat} levels in room {room} (mean = {summary$co2_mean}ppm, max = {summary$co2_max}ppm over the past {summary$durr} minutes)\n#ESACO2")
+# Construct the tweet -----------------------------------------------------
+tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {summary$durr} minutes is {summary$co2_mean}ppm (max = {summary$co2_max}ppm )\n#ESACO2")
 alt <-
   glue::glue(
-  "A line graph showing the CO2 concentration in ppm in room {room} between {format(summary$start_time, '%H:%M')} and {format(summary$end_time, '%H:%M')} roughly every 5 seconds.
-  CO2 levels hit a minimum of {summary$co2_min} ppm at {format(summary$co2_min_time, '%H:%M')} and were at a maximum of {summary$co2_max}ppm at {format(summary$co2_max_time, '%H:%M')}."
+  "A line graph showing the CO2 concentration in ppm in room {room} between {format(summary$start_time, '%I:%M %p')} and {format(summary$end_time, '%I:%M %p')} roughly every 5 seconds.
+  CO2 levels hit a minimum of {summary$co2_min} ppm at {format(summary$co2_min_time, '%I:%M %p')} and were at a maximum of {summary$co2_max}ppm at {format(summary$co2_max_time, '%I:%M %p')}."
 )
 
 #Preview tweet and prompt to send or not
