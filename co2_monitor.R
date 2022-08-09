@@ -132,8 +132,11 @@ bottom <-
   ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
   geom_line(alpha = 0.6) +
   geom_point(size = 0.75) +
-  scale_x_time(labels = scales::label_time(format = "%I:%M %p")) +
-  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
+  scale_x_time(
+    labels = scales::label_time(format = "%I:%M %p"),
+    breaks = scales::breaks_pretty(3)
+  ) +
+  scale_y_continuous(breaks = scales::breaks_pretty(4, min.n = 2)) +
   scale_color_manual(
     guide = "none",
     values = co2_colors
@@ -181,11 +184,9 @@ ggsave(
   units = "px"
 )
 
-plot_file <- paste0("co2-", summary$end_time, ".png")
-ggsave(plot_file, path = "img", plot = p, width = 1200, height = 675, units = "px")
 
 # Construct the tweet -----------------------------------------------------
-tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {summary$durr} minutes is {summary$co2_mean}ppm (max = {summary$co2_max}ppm )\n#ESACO2")
+tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {summary$durr} minutes is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)\n#ESACO2")
 alt <-
   glue::glue(
   "A line graph showing the CO2 concentration in ppm in room {room} between {format(summary$start_time, '%I:%M %p')} and {format(summary$end_time, '%I:%M %p')} roughly every 5 seconds.
