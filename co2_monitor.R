@@ -186,7 +186,7 @@ ggsave(
 
 
 # Construct the tweet -----------------------------------------------------
-tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {summary$durr} minutes is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)\n#ESACO2")
+tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {format(summary$durr)} is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)\n#ESACO2")
 alt <-
   glue::glue(
   "A line graph showing the CO2 concentration in ppm in room {room} between {format(summary$start_time, '%I:%M %p')} and {format(summary$end_time, '%I:%M %p')} roughly every 5 seconds.
@@ -202,7 +202,8 @@ if(go){
   post_tweet(
     status = tweet,
     media = file.path("img", plot_file),
-    media_alt_text = "testing testing"
-  )
+    media_alt_text = "testing testing" 
+    )
+  
 }
 
