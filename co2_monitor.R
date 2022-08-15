@@ -202,7 +202,7 @@ if(go){
   post_tweet(
     status = tweet,
     media = file.path("img", plot_file),
-    media_alt_text = "testing testing" 
+    media_alt_text = alt
     )
   
 }
