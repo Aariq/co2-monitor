@@ -195,10 +195,11 @@ alt <-
 
 #Preview tweet and prompt to send or not
 magick::image_read(file.path("img", plot_file))
-
 go <- ui_yeah(c("Ready to tweet?", ui_value(tweet)))
 
 if(go){
+  auth_as("co2-esa")
+  
   post_tweet(
     status = tweet,
     media = file.path("img", plot_file),
