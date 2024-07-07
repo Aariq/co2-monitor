@@ -5,8 +5,8 @@ library(serial)
 library(jsonlite)
 library(tidyverse)
 library(hms)
-library(rtweet)
-library(usethis)
+library(rtoot)
+library(usethis) #for ui_yeah()
 library(ragg)
 library(magick)
 library(ggtext)
@@ -152,9 +152,14 @@ bottom <-
         plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
 
 
+# label <- glue::glue("
+#                     <span style='font-size:35pt; color:{co2_colors[summary$cat]}'>{summary$co2_mean}</span>ppm <span style='font-size:35pt;'>{summary$emoji}</span>
+#                     <br>room: {room}     #esaCO2 
+#                     ")
+
+#for testing:
 label <- glue::glue("
                     <span style='font-size:35pt; color:{co2_colors[summary$cat]}'>{summary$co2_mean}</span>ppm <span style='font-size:35pt;'>{summary$emoji}</span>
-                    <br>room: {room}     #esaCO2 
                     ")
 
 top <- ggplot(summary) +
@@ -186,7 +191,10 @@ ggsave(
 
 
 # Construct the tweet -----------------------------------------------------
-tweet <- glue::glue("Mean CO2 concentration in room {room} over the past {format(summary$durr)} is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)\n#ESACO2")
+# toot <- glue::glue("Mean CO2 concentration in room {room} over the past {format(summary$durr)} is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)\n#USRSE2024")
+
+#for testing
+toot <- glue::glue("Mean CO2 concentration in my home office over the past {format(summary$durr)} is {summary$co2_mean}ppm (max = {summary$co2_max}ppm)")
 alt <-
   glue::glue(
   "A line graph showing the CO2 concentration in ppm in room {room} between {format(summary$start_time, '%I:%M %p')} and {format(summary$end_time, '%I:%M %p')} roughly every 5 seconds.
@@ -195,16 +203,15 @@ alt <-
 
 #Preview tweet and prompt to send or not
 magick::image_read(file.path("img", plot_file))
-go <- ui_yeah(c("Ready to tweet?", ui_value(tweet)))
+go <- ui_yeah(c("Ready to toot?", ui_value(toot)))
 
 if(go){
-  auth_as("co2-esa")
   
-  post_tweet(
-    status = tweet,
+  post_toot(
+    status = toot,
     media = file.path("img", plot_file),
-    media_alt_text = alt
-    )
+    alt_text = alt
+  )
   
 }
 
