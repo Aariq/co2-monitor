@@ -5,10 +5,15 @@ library(tidyverse)
 library(lubridate)
 library(patchwork)
 library(ggtext)
+library(shinyalert)
+library(rtoot)
 
 # Set up UI
 ui <- fluidPage(
-  plotOutput("co2")
+  plotOutput("co2"),
+  textInput("room", "room number", value = "unknown"),
+  actionButton("toot_btn", "Toot!", icon = icon("mastodon")),
+  actionButton("reset_btn", "Reset", icon = icon("arrow-rotate-left"))
 )
 
 # Set up server
@@ -67,83 +72,66 @@ server <- function(input, output) {
     })
   })
 
-  #text output for now
   output$co2 <- renderPlot({
-    co2_df <-
-      values$df %>%
-      mutate(date_time = lubridate::with_tz(date_time, tzone = "Canada/Eastern")) %>% 
-      #remove abberantly low values
-      filter(CO2 > 300) %>% 
-      mutate(time = hms::as_hms(date_time),
-             cat = case_when(
-               CO2 <= 1000 ~ "1",
-               CO2 > 1000 & CO2 <= 2000 ~ "2",
-               CO2 > 2000 & CO2 <= 5000 ~ "3",
-               CO2 > 5000 ~ "4"
-             ), 
-             emoji = case_when(
-               CO2 <= 1000 ~ "😀",
-               CO2 > 1000 & CO2 <= 2000 ~ "🥱",
-               CO2 > 2000 & CO2 <= 5000 ~ "😦",
-               CO2 > 5000 ~ "😵"
-             ))
+    req(values$df$CO2)
+    plot_co2(values$df, room = input$room)
+  })
+  
+  #initialize empty toot
+  toot <- reactiveValues(toot = character(), alt = character(), plot = character())
+  
+  #when toot button clicked
+  observeEvent(input$toot_btn, {
+    now <- Sys.time()
     
+    #save raw data
+    write_csv(values$df, paste0("../data/", now, "-", input$room,  "-data.csv"))
     
-    # Generate plot -----------------------------------------------------------
-    co2_colors = c(
-      "1" = "#008037",
-      "2" = "#FFBD59",
-      "3" = "#FF914D",
-      "4" = "#FF1616"
+    #save plot
+    p <- plot_co2(values$df, room = input$room)
+    plot_file <- paste0("co2-", now, ".png")
+    ggsave(
+      filename = plot_file,
+      path = "www/",
+      plot = p,
+      width = 1200,
+      height = 675,
+      units = "px"
     )
-    trace_plot <-
-      co2_df %>%
-      ggplot(aes(x = time, y = CO2, color = cat, group = 1)) +
-      geom_line() +
-      geom_point() +
-      scale_x_time(
-        labels = scales::label_time(format = "%I:%M %p"),
-        breaks = scales::breaks_pretty(3)
-      ) +
-      scale_y_continuous(breaks = scales::breaks_pretty(4, min.n = 2)) +
-      scale_color_manual(
-        guide = "none",
-        values = co2_colors
-      ) +
-      theme_bw() +
-      labs(
-        x = "Time",
-        y = expression(CO[2]~(ppm))
-      ) +
-      theme(text = element_text(size = 18),
-            axis.title.x = element_blank(),
-            panel.grid = element_blank(),
-            plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
     
-    last_reading <- co2_df |> tail(1)
-    label <- glue::glue("
-                    <span style='font-size:35pt; color:{co2_colors[last_reading$cat]}'>{last_reading$CO2}</span>ppm <span style='font-size:35pt;'>{last_reading$emoji}</span>
-                    ")
+    #create toot text
+    toot_list <- make_toot(values$df, room = input$room)
     
-    top <- ggplot(last_reading) +
-      geom_richtext(aes(
-        x = 0,
-        y = 0,
-        label = label
-      ),
-      fill = NA,
-      label.color = NA,
-      size = 5) +
-      scale_color_manual(
-        guide = "none",
-        values = co2_colors
-      ) +
-      theme_void()
+    #pop-up
+    shinyalert(
+      title = "Ready to toot?",
+      text = glue::glue('{toot_list$toot}
+                        <br>
+                        <img src="{plot_file}" width = 400></img>'),
+      html = TRUE,
+      showCancelButton = TRUE,
+      size = "m"
+    )
+   
+    #update reactive toot object
+    toot$toot <- toot_list$toot
+    toot$alt <- toot_list$alt
+    toot$plot <- plot_file
     
-    p <- top/trace_plot
-    p
-    
-    
+  })
+  
+  #when "ok" clicked in alert modal
+  observeEvent(input$shinyalert, {
+    post_toot(
+      status = toot$toot,
+      media = file.path("www", toot$plot),
+      alt_text = toot$alt
+    )
+  })
+  
+  #reset button
+  observeEvent(input$reset_btn, {
+    values$df <- tibble::tibble()
   })
 }
 
