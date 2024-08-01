@@ -20,7 +20,7 @@ ui <- fluidPage(
 server <- function(input, output) {
   
   # Set up serial port reading --------------------------------------------------
-
+  
   #figure out which port it's plugged into
   ports <- listPorts()
   co2_port <- ports[str_detect(ports, "^cu\\.usbmodem\\d+")]
@@ -30,12 +30,12 @@ server <- function(input, output) {
   if(length(co2_port) > 1) {
     stop("More than one thing is plugged in")
   }
-
+  
   con <- serialConnection(
     name = "co2",
     port = co2_port
   )
-
+  
   open(con)
   
   # initialise an empty dataframe as a reactiveValues object.
@@ -49,7 +49,7 @@ server <- function(input, output) {
       bind_rows(values$df, read_trinkey(con, co2_port))
     })
   })
-
+  
   output$co2 <- renderPlot({
     req(values$df$CO2)
     plot_co2(values$df, room = input$room)
@@ -79,28 +79,32 @@ server <- function(input, output) {
     
     #create toot text
     toot_list <- make_toot(values$df, room = input$room)
-    
-    #pop-up
-    shinyalert(
-      title = "Ready to toot?",
-      text = glue::glue('{toot_list$toot}
-                        <br>
-                        <img src="{plot_file}" width = 400></img>'),
-      html = TRUE,
-      showCancelButton = TRUE,
-      size = "m"
-    )
-   
     #update reactive toot object
     toot$toot <- toot_list$toot
     toot$alt <- toot_list$alt
     toot$plot <- plot_file
+    
+    #pop-up
+    shinyalert(
+      title = "Ready to toot?",
+      text = tagList(
+        textAreaInput("toot_text", label = "Text:", value = toot$toot, width = "100%"),
+        img(src = plot_file, width = 400, alt = toot$alt)
+      ),
+      html = TRUE,
+      showCancelButton = TRUE,
+      size = "m"
+    )
     
   })
   
   #when "ok" clicked in alert modal
   observeEvent(input$shinyalert, {
     if (isTRUE(input$shinyalert)) {
+      
+      #Update toot text from input
+      toot$toot <- input$toot_text
+      
       post_toot(
         status = toot$toot,
         media = file.path("www", toot$plot),
