@@ -88,6 +88,7 @@ void loop() {
 }
 
 void sendCSV() {
+  Serial.print(current_time); Serial.print(", ");
   Serial.print(CO2); Serial.print(", ");
   Serial.print(pressure); Serial.print(", ");
   Serial.print(temperature); Serial.print(", ");
@@ -96,6 +97,7 @@ void sendCSV() {
 
 void sendJSON() {
   Serial.print("{");
+  Serial.print("\"time\" : "); Serial.print(current_time); Serial.print(", ");
   Serial.print("\"CO2\" : "); Serial.print(CO2); Serial.print(", ");
   Serial.print("\"pressure\" : "); Serial.print(pressure); Serial.print(", ");
   Serial.print("\"temperature\" : "); Serial.print(temperature); Serial.print(", ");
