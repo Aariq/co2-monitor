@@ -36,16 +36,18 @@ server <- function(input, output) {
     port = co2_port
   )
 
-
   open(con)
 
-
+#TODO move to separate file & make function cat() current CO2 (for debug)
   # Function to get data ----------------------------------------------------
 
   get_data <- function(con, port) {
     stopifnot(isOpen(con) & port %in% suppressMessages(listPorts()))
 
     #try to read
+    #Occasionally fails to parse when either there is no data in the buffer, or
+    #there is more than one reading in the buffer.  We'll just throw those out
+    #for simplicity I guess.
     co2_json <-
       try(read.serialConnection(con) %>%
             jsonlite::parse_json(), silent = TRUE)
@@ -56,6 +58,7 @@ server <- function(input, output) {
       co2_df <-
         as_tibble(co2_json) %>%
         mutate(date_time = Sys.time())
+      cat(co2_df$CO2, "\n")
       return(co2_df)
     }
   }
@@ -122,11 +125,13 @@ server <- function(input, output) {
   
   #when "ok" clicked in alert modal
   observeEvent(input$shinyalert, {
-    post_toot(
-      status = toot$toot,
-      media = file.path("www", toot$plot),
-      alt_text = toot$alt
-    )
+    if (isTRUE(input$shinyalert)) {
+      post_toot(
+        status = toot$toot,
+        media = file.path("www", toot$plot),
+        alt_text = toot$alt
+      )
+    }
   })
   
   #reset button
