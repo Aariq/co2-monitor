@@ -100,7 +100,7 @@ server <- function(input, output) {
   
   #when "ok" clicked in alert modal
   observeEvent(input$shinyalert, {
-    if (!isFALSE(input$shinyalert)) {
+    if (isTRUE(input$shinyalert)) {
       
       #Update toot text from input
       toot$toot <- input$toot_text
@@ -108,8 +108,7 @@ server <- function(input, output) {
       post_toot(
         status = toot$toot,
         media = file.path("www", toot$plot),
-        alt_text = toot$alt,
-        visibility = "private" #for debugging
+        alt_text = toot$alt
       )
     }
   })
