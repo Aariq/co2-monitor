@@ -39,37 +39,35 @@ plot_co2 <- function(data, room) {
       guide = "none",
       values = co2_colors
     ) +
-    theme_bw() +
+    theme_bw() 
+  
+  last_reading <- co2_df |> tail(1)
+
+  title_style <- 
+    classic_style() |> 
+    modify_style(
+      "big",
+      size = em(2.2) #2.2x as big
+    )
+  
+  title_md <-
+    glue::glue(
+      "{.big {<<co2_colors[last_reading$cat]>> <<last_reading$CO2>>}}ppm {.big <<last_reading$emoji>>}",
+      .open = "<<", .close = ">>"
+    )
+  subtitle_md <- 
+    glue::glue("Room <<room>> {.grey |} {.blue #USRSE2024}", .open = "<<", .close = ">>")
+  
+  trace_plot +
     labs(
+      title = title_md,
+      subtitle = subtitle_md,
       x = "Time",
       y = expression(CO[2]~(ppm))
     ) +
     theme(text = element_text(size = 12),
           axis.title.x = element_blank(),
           panel.grid = element_blank(),
-          plot.margin = unit(c(5.5, 15, 5.5, 15), "points"))
-  
-  last_reading <- co2_df |> tail(1)
-  label <- glue::glue("
-                    <span style='font-size:35pt; color:{co2_colors[last_reading$cat]}'>{last_reading$CO2}</span>ppm <span style='font-size:35pt;'>{last_reading$emoji}</span>
-                    <br> room: {room} | #USRSE2024
-                    ")
-  
-  top <- ggplot(last_reading) +
-    geom_richtext(aes(
-      x = 0,
-      y = 0,
-      label = label
-    ),
-    fill = NA,
-    label.color = NA,
-    size = 5) +
-    scale_color_manual(
-      guide = "none",
-      values = co2_colors
-    ) +
-    theme_void()
-  
-  p <- top/trace_plot
-  p
+          plot.title = element_marquee(style = title_style, hjust = 0.5, margin = margin(b=-10)),
+          plot.subtitle = element_marquee(hjust = 0.5, margin = margin(t=-10, b = -5)))
 }
